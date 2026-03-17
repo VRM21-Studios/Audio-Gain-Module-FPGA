@@ -12,9 +12,9 @@ module tb_axis_gain_wrapper;
     // ------------------------------------------------------------------------
     // Configuration
     // ------------------------------------------------------------------------
-    localparam integer CLK_PERIOD = 10;   // 100 MHz
-    localparam integer FBITS      = 12;   // Q4.12
-    localparam real    PI         = 3.141592653589793;
+    parameter integer CLK_PERIOD = 10;   // 100 MHz
+    parameter integer FBITS       = 12;   // Q4.12
+    parameter real    PI          = 3.141592653589793;
 
     // ------------------------------------------------------------------------
     // Clocks & reset
@@ -53,9 +53,9 @@ module tb_axis_gain_wrapper;
     reg         s_axi_bready;
 
     // Unused read channel (tied off)
-    reg  [3:0]  s_axi_araddr  = 0;
-    reg         s_axi_arvalid = 0;
-    reg         s_axi_rready  = 0;
+    reg  [3:0]  s_axi_araddr;
+    reg         s_axi_arvalid;
+    reg         s_axi_rready;
 
     // ------------------------------------------------------------------------
     // Monitoring & stimulus helpers
@@ -77,37 +77,37 @@ module tb_axis_gain_wrapper;
         .AUDIO_WIDTH(16),
         .GAIN_FBITS (FBITS)
     ) dut (
-        .aclk           (aclk),
-        .aresetn        (aresetn),
+        .aclk            (aclk),
+        .aresetn         (aresetn),
 
-        .s_axis_tdata   (s_axis_tdata),
-        .s_axis_tlast   (s_axis_tlast),
-        .s_axis_tvalid  (s_axis_tvalid),
-        .s_axis_tready  (s_axis_tready),
+        .s_axis_tdata    (s_axis_tdata),
+        .s_axis_tlast    (s_axis_tlast),
+        .s_axis_tvalid   (s_axis_tvalid),
+        .s_axis_tready   (s_axis_tready),
 
-        .m_axis_tdata   (m_axis_tdata),
-        .m_axis_tlast   (m_axis_tlast),
-        .m_axis_tvalid  (m_axis_tvalid),
-        .m_axis_tready  (m_axis_tready),
+        .m_axis_tdata    (m_axis_tdata),
+        .m_axis_tlast    (m_axis_tlast),
+        .m_axis_tvalid   (m_axis_tvalid),
+        .m_axis_tready   (m_axis_tready),
 
-        .s_axi_awaddr   (s_axi_awaddr),
-        .s_axi_awvalid  (s_axi_awvalid),
-        .s_axi_awready  (s_axi_awready),
-        .s_axi_wdata    (s_axi_wdata),
-        .s_axi_wstrb    (s_axi_wstrb),
-        .s_axi_wvalid   (s_axi_wvalid),
-        .s_axi_wready   (s_axi_wready),
-        .s_axi_bresp    (s_axi_bresp),
-        .s_axi_bvalid   (s_axi_bvalid),
-        .s_axi_bready   (s_axi_bready),
+        .s_axi_awaddr    (s_axi_awaddr),
+        .s_axi_awvalid   (s_axi_awvalid),
+        .s_axi_awready   (s_axi_awready),
+        .s_axi_wdata     (s_axi_wdata),
+        .s_axi_wstrb     (s_axi_wstrb),
+        .s_axi_wvalid    (s_axi_wvalid),
+        .s_axi_wready    (s_axi_wready),
+        .s_axi_bresp     (s_axi_bresp),
+        .s_axi_bvalid    (s_axi_bvalid),
+        .s_axi_bready    (s_axi_bready),
 
-        .s_axi_araddr   (s_axi_araddr),
-        .s_axi_arvalid  (s_axi_arvalid),
-        .s_axi_arready  (),
-        .s_axi_rdata    (),
-        .s_axi_rresp    (),
-        .s_axi_rvalid   (),
-        .s_axi_rready   (s_axi_rready)
+        .s_axi_araddr    (s_axi_araddr),
+        .s_axi_arvalid   (s_axi_arvalid),
+        .s_axi_arready   (),
+        .s_axi_rdata     (),
+        .s_axi_rresp     (),
+        .s_axi_rvalid    (),
+        .s_axi_rready    (s_axi_rready)
     );
 
     assign output_l = m_axis_tdata[15:0];
@@ -116,15 +116,15 @@ module tb_axis_gain_wrapper;
     // ------------------------------------------------------------------------
     // Clock generation
     // ------------------------------------------------------------------------
-    initial begin
-        aclk = 1'b0;
-        forever #(CLK_PERIOD/2) aclk = ~aclk;
-    end
+    initial aclk = 1'b0;
+    always #(CLK_PERIOD/2) aclk = ~aclk;
 
     // ------------------------------------------------------------------------
     // AXI-Lite write task
     // ------------------------------------------------------------------------
-    task write_reg(input [3:0] addr, input [31:0] data);
+    task write_reg;
+        input [3:0]  addr;
+        input [31:0] data;
     begin
         @(posedge aclk);
         s_axi_awaddr  <= addr;
@@ -150,7 +150,8 @@ module tb_axis_gain_wrapper;
     // ------------------------------------------------------------------------
     // AXI-Stream stimulus: one sine period
     // ------------------------------------------------------------------------
-    task send_sine_wave(input integer num_samples);
+    task send_sine_wave;
+        input integer num_samples;
     begin
         for (i = 0; i < num_samples; i = i + 1) begin
             theta = 2.0 * PI * i / num_samples;
@@ -161,7 +162,7 @@ module tb_axis_gain_wrapper;
 
             s_axis_tvalid <= 1'b1;
             s_axis_tdata  <= {input_r, input_l};
-            s_axis_tlast  <= (i == num_samples-1);
+            s_axis_tlast  <= (i == num_samples-1) ? 1'b1 : 1'b0;
 
             while (!s_axis_tready)
                 @(posedge aclk);
@@ -185,11 +186,11 @@ module tb_axis_gain_wrapper;
 
     always @(posedge aclk) begin
         if (m_axis_tvalid && m_axis_tready) begin
-            $fwrite(f_out, "%0t,%s,%d,%d,%d,%d\n",
+            $fwrite(f_out, "%0d,%s,%d,%d,%d,%d\n",
                     $time, test_case_name,
                     $signed(s_axis_tdata[15:0]),
                     $signed(s_axis_tdata[31:16]),
-                    output_l, output_r);
+                    $signed(output_l), $signed(output_r));
         end
     end
 
@@ -197,13 +198,23 @@ module tb_axis_gain_wrapper;
     // Main test sequence
     // ------------------------------------------------------------------------
     initial begin
+        // Reset and initialization
         aresetn        = 1'b0;
         s_axis_tvalid  = 1'b0;
         s_axis_tlast   = 1'b0;
+        s_axis_tdata   = 32'd0;
         m_axis_tready  = 1'b1;
+        
+        s_axi_awaddr   = 4'd0;
         s_axi_awvalid  = 1'b0;
+        s_axi_wdata    = 32'd0;
+        s_axi_wstrb    = 4'd0;
         s_axi_wvalid   = 1'b0;
         s_axi_bready   = 1'b0;
+        
+        s_axi_araddr   = 4'd0;
+        s_axi_arvalid  = 1'b0;
+        s_axi_rready   = 1'b0;
 
         repeat (2) @(posedge aclk);
         aresetn = 1'b1;
