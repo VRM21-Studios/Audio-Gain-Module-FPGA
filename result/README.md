@@ -20,7 +20,7 @@ bit-exact audio evaluation**.
 ### Description
 
 This result corresponds to the **system-level testbench**
-(`tb_axis_gain_wrapper.sv`) and verifies the Gain module when integrated with:
+(`tb_axis_gain_wrapper.v`) and verifies the Gain module when integrated with:
 
 - AXI4-Stream (audio data path)
 - AXI4-Lite (control & gain registers)
@@ -59,7 +59,7 @@ The phase relationship between channels is preserved.
 ### Description
 
 This result corresponds to the **core-level unit testbench**
-(`tb_gain_core.sv`) and focuses on internal behavior without AXI interfaces.
+(`tb_gain_core.v`) and focuses on internal behavior without AXI interfaces.
 
 ### Signal Overview
 
