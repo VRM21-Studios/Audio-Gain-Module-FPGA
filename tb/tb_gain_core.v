@@ -14,10 +14,10 @@ module tb_gain_core;
     // ------------------------------------------------------------------------
     // Configuration
     // ------------------------------------------------------------------------
-    localparam integer DWIDTH     = 16;
-    localparam integer GWIDTH     = 16;
-    localparam integer FBITS      = 12; // Q4.12 format
-    localparam integer CLK_PERIOD = 10;
+    parameter integer DWIDTH      = 16;
+    parameter integer GWIDTH      = 16;
+    parameter integer FBITS       = 12; // Q4.12 format
+    parameter integer CLK_PERIOD  = 10;
 
     // ------------------------------------------------------------------------
     // Signals
@@ -41,13 +41,13 @@ module tb_gain_core;
         .GWIDTH(GWIDTH),
         .FBITS (FBITS)
     ) dut (
-        .clk       (clk),
-        .rst_n     (rst_n),
-        .ce        (ce),
-        .en        (en),
-        .data_i    (data_i),
-        .data_gain (data_gain),
-        .data_o    (data_o)
+        .clk        (clk),
+        .rst_n      (rst_n),
+        .ce         (ce),
+        .en         (en),
+        .data_i     (data_i),
+        .data_gain  (data_gain),
+        .data_o     (data_o)
     );
 
     // ------------------------------------------------------------------------
@@ -75,7 +75,7 @@ module tb_gain_core;
 
     always @(posedge clk) begin
         if (rst_n) begin
-            $fwrite(f_out, "%0t,%b,%b,%b,%d,%d,%d\n",
+            $fwrite(f_out, "%0d,%b,%b,%b,%d,%d,%d\n",
                     $time, rst_n, ce, en,
                     $signed(data_i), $signed(data_gain), $signed(data_o));
         end
@@ -84,9 +84,13 @@ module tb_gain_core;
     // ------------------------------------------------------------------------
     // Check task
     // ------------------------------------------------------------------------
-    task check_output(input signed [15:0] expected, input string msg);
+    // msg buffer using large reg to store string (Verilog-2001 style)
+    task check_output;
+        input signed [15:0] expected;
+        input [255:0] msg; 
     begin
-        #1; // allow data to settle
+        @(posedge clk); // Wait for clock edge
+        #1;             // Small delta for logic to propagate in simulator
         if (data_o !== expected) begin
             $display("[ERROR] %s | exp=%d got=%d",
                      msg, expected, data_o);
@@ -104,8 +108,8 @@ module tb_gain_core;
         rst_n     = 1'b0;
         ce        = 1'b0;
         en        = 1'b0;
-        data_i   = '0;
-        data_gain= GAIN_1_0;
+        data_i    = 16'sd0;
+        data_gain = GAIN_1_0;
 
         repeat (2) @(posedge clk);
         rst_n = 1'b1;
@@ -116,58 +120,49 @@ module tb_gain_core;
         $display("=======================================");
 
         // Test 1: Bypass
-        en       = 1'b0;
-        data_i  = 16'd1234;
+        en        = 1'b0;
+        data_i    = 16'd1234;
         data_gain = GAIN_2_0;
-        @(posedge clk);
         check_output(16'd1234, "Bypass");
 
         // Test 2: Unity gain
-        en       = 1'b1;
-        data_i  = 16'd1000;
+        en        = 1'b1;
+        data_i    = 16'd1000;
         data_gain = GAIN_1_0;
-        @(posedge clk);
         check_output(16'd1000, "Unity gain");
 
         // Test 3: Attenuation
-        data_i  = 16'd5000;
+        data_i    = 16'd5000;
         data_gain = GAIN_0_5;
-        @(posedge clk);
         check_output(16'd2500, "Attenuation");
 
         // Test 4: Amplify (safe)
-        data_i  = 16'd10000;
+        data_i    = 16'd10000;
         data_gain = GAIN_2_0;
-        @(posedge clk);
         check_output(16'd20000, "Amplify safe");
 
         // Test 5: Positive saturation
-        data_i  = 16'd20000;
+        data_i    = 16'd20000;
         data_gain = GAIN_2_0;
-        @(posedge clk);
         check_output(16'd32767, "Positive saturation");
 
         // Test 6: Negative saturation
-        data_i  = -16'd20000;
+        data_i    = -16'd20000;
         data_gain = GAIN_2_0;
-        @(posedge clk);
         check_output(-16'd32768, "Negative saturation");
 
         // Test 7: Mute
-        data_i  = -16'd12345;
+        data_i    = -16'd12345;
         data_gain = 16'd0;
-        @(posedge clk);
         check_output(16'd0, "Mute");
 
         // Test 8: Clock enable hold
         data_i = 16'd100;
         data_gain = GAIN_1_0;
         ce = 1'b0;
-        @(posedge clk);
         check_output(16'd0, "CE hold");
 
         ce = 1'b1;
-        @(posedge clk);
         check_output(16'd100, "CE resume");
 
         $display("=======================================");
